@@ -34,7 +34,14 @@ module.exports = (client) => {
   console.log(table.toString());
 
   client.on('ready', async () => {
-    await client.application.commands.set(data);
-    console.log('Registered slash commands.');
+    const guildId = client.guilds.cache.first()?.id;
+    if (guildId) {
+      const guild = client.guilds.cache.get(guildId);
+      await guild.commands.set(data);
+      console.log('Registered slash commands in guild:', guildId);
+    } else {
+      await client.application.commands.set(data);
+      console.log('Registered global slash commands.');
+    }
   });
 };

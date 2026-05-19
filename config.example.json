@@ -1,0 +1,16 @@
+{
+  "prefix": "?",
+  "clientId": "YOUR_CLIENT_ID",
+  "ownerIds": [
+    "YOUR_OWNER_ID"
+  ],
+  "nodes": [
+    {
+      "name": "Localhost",
+      "host": "localhost",
+      "port": 2333,
+      "password": "youshallnotpass",
+      "secure": false
+    }
+  ]
+}

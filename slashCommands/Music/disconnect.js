@@ -6,17 +6,17 @@ module.exports = {
   inVc: true,
   sameVc: true,
   player: true,
-  run: (client, interaction) => {
-    const player = client.poru.players.get(interaction.guildId);
+  run: async (client, interaction) => {
+    const player = client.poru.players.get(interaction.guild.id);
+    if (!player) return interaction.reply({ content: 'No player exists.', ephemeral: true });
 
+    player.autoplay = false;
+    player.radioMode = false;
     player.destroy();
 
-    const embed = new EmbedBuilder()
-      .setColor('White')
-      .setDescription('Disconnected the player!');
-
     return interaction.reply({
-      embeds: [embed],
+      embeds: [new EmbedBuilder().setColor('White').setDescription('Disconnected.')],
+      ephemeral: true,
     });
   },
 };

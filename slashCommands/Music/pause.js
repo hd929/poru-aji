@@ -2,30 +2,19 @@ const { EmbedBuilder } = require('discord.js');
 
 module.exports = {
   name: 'pause',
-  description: 'pause the player',
+  description: 'Pause the current track',
   inVc: true,
   sameVc: true,
-  run: (client, interaction) => {
+  player: true,
+  current: true,
+  run: async (client, interaction) => {
     const player = client.poru.players.get(interaction.guild.id);
-
-    if (player.isPaused) {
-      const embed = new EmbedBuilder()
-        .setColor('White')
-        .setDescription('Player is already paused');
-
-      return interaction.reply({
-        embeds: [embed],
-      });
-    }
+    if (player.isPaused) return interaction.reply({ content: 'Already paused.', ephemeral: true });
 
     player.pause(true);
-
-    const embed = new EmbedBuilder()
-      .setColor('White')
-      .setDescription('Paused the player');
-
     return interaction.reply({
-      embeds: [embed],
+      embeds: [new EmbedBuilder().setColor('Yellow').setDescription('⏸️ Paused.')],
+      ephemeral: true,
     });
   },
 };

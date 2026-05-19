@@ -1,57 +1,41 @@
-const { ApplicationCommandOptionType, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ApplicationCommandOptionType } = require('discord.js');
 
 module.exports = {
-  name: 'jump',
-  description: 'Moves the position of two tracks',
+  name: 'move',
+  description: 'Move a track to a different position in queue',
   inVc: true,
   sameVc: true,
+  player: true,
   options: [
     {
-      name: 'track',
-      description: 'The track which you want to move.',
-      type: ApplicationCommandOptionType.Number,
+      name: 'from',
+      type: ApplicationCommandOptionType.Integer,
+      description: 'Current position (1-based)',
       required: true,
       min_value: 1,
     },
     {
-      name: 'position',
-      description: 'Remove a track from the queue.',
-      type: ApplicationCommandOptionType.Number,
+      name: 'to',
+      type: ApplicationCommandOptionType.Integer,
+      description: 'Target position (1-based)',
       required: true,
-      min_value: 2,
+      min_value: 1,
     },
   ],
-  run: (client, interaction) => {
-    function moveArrayElement(arr, fromIndex, toIndex) {
-      arr.splice(toIndex, 0, arr.splice(fromIndex, 1)[0]);
-      return arr;
+  run: async (client, interaction) => {
+    const player = client.poru.players.get(interaction.guild.id);
+    const from = interaction.options.getInteger('from', true);
+    const to = interaction.options.getInteger('to', true);
+
+    if (from > player.queue.length || to > player.queue.length) {
+      return interaction.reply({ content: 'Invalid position.', ephemeral: true });
     }
 
-    const player = client.poru.players.get(interaction.guild.id);
-
-    const from = interaction.options.getNumber('track');
-    const to = interaction.options.getNumber('position');
-
-    if (
-      from === to ||
-      isNaN(from) ||
-      from < 1 ||
-      from > player.queue.length ||
-      isNaN(to) ||
-      to < 1 ||
-      to > player.queue.length
-    )
-      return interaction.reply("That track doesn't exist in the queue.");
-
-    const moved = player.queue[from - 1];
-    moveArrayElement(player.queue, from - 1, to - 1);
-
-    const embed = new EmbedBuilder()
-      .setColor('White')
-      .setDescription(`Moved ${moved.info.title} to \`${to}\`.`);
-
+    const track = player.queue.splice(from - 1, 1)[0];
+    player.queue.splice(to - 1, 0, track);
     return interaction.reply({
-      embeds: [embed],
+      embeds: [new EmbedBuilder().setColor('Green').setDescription(`Moved track from ${from} to ${to}.`)],
+      ephemeral: true,
     });
   },
 };

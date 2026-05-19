@@ -1,3 +1,33 @@
 node_modules
 replit.nix
 package-lock.json
+
+# Secrets
+.env
+.env.local
+.env.production
+
+# Cookies
+cookies.txt
+*.cookies
+
+# Config with sensitive data
+config.json
+
+# Data directory
+data/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# PM2
+.pm2/

@@ -1,42 +1,44 @@
-const { ApplicationCommandOptionType, EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ApplicationCommandOptionType } = require('discord.js');
+
+function parseTime(str) {
+  const match = str.match(/^(\d+):(\d+)$/);
+  if (match) return parseInt(match[1]) * 60000 + parseInt(match[2]) * 1000;
+  const seconds = parseInt(str);
+  return isNaN(seconds) ? null : seconds * 1000;
+}
 
 module.exports = {
   name: 'seek',
-  description: 'Seek the player',
+  description: 'Seek to a position in the current track',
   inVc: true,
   sameVc: true,
+  player: true,
+  current: true,
   options: [
     {
-      name: 'position',
-      description: 'New position of the player',
-      type: ApplicationCommandOptionType.Number,
+      name: 'time',
+      type: ApplicationCommandOptionType.String,
+      description: 'Time in mm:ss or seconds',
       required: true,
-      min_value: 0,
     },
   ],
-  run: (client, interaction) => {
+  run: async (client, interaction) => {
     const player = client.poru.players.get(interaction.guild.id);
+    const timeStr = interaction.options.getString('time', true);
+    const timeMs = parseTime(timeStr);
 
-    const position = interaction.options.getNumber('position', true);
-
-    if (!player.currentTrack.isSeekable) {
-      const embed = new EmbedBuilder()
-        .setColor('White')
-        .setDescription('Track is not seekable');
-
-      interaction.reply({
-        embeds: [embed],
-      });
+    if (!timeMs || timeMs < 0) {
+      return interaction.reply({ content: 'Invalid time format. Use mm:ss or seconds.', ephemeral: true });
     }
 
-    player.seekTo(position * 1000);
+    if (!player.currentTrack?.info?.length) {
+      return interaction.reply({ content: 'Cannot seek in this track.', ephemeral: true });
+    }
 
-    const embed = new EmbedBuilder()
-      .setColor('White')
-      .setDescription(`Seeked to ${position}`);
-
+    player.seekTo(timeMs);
     return interaction.reply({
-      embeds: [embed],
+      embeds: [new EmbedBuilder().setColor('Green').setDescription(`⏩ Seeked to \`${timeStr}\`.`)],
+      ephemeral: true,
     });
   },
 };

@@ -1,23 +1,32 @@
 const { EmbedBuilder } = require('discord.js');
+const { getServerSetting } = require('../../utils/settings');
 
 module.exports = {
   name: 'join',
-  description: 'Joins your voice channel',
+  description: 'Join your voice channel',
   inVc: true,
-  run: (client, interaction) => {
-    client.poru.createConnection({
+  run: async (client, interaction) => {
+    const existing = client.poru.players.get(interaction.guild.id);
+    if (existing) {
+      return interaction.reply({ content: 'Already in a voice channel. Use `/leave` first.', ephemeral: true });
+    }
+
+    const player = client.poru.createConnection({
       guildId: interaction.guild.id,
       voiceChannel: interaction.member.voice.channel.id,
       textChannel: interaction.channel.id,
       deaf: true,
     });
 
-    const embed = new EmbedBuilder()
-      .setColor('White')
-      .setDescription(`Joined ${interaction.member.voice.channel.toString()}`);
+    player.autoplay = false;
+    player.radioMode = false;
+
+    const savedVol = await getServerSetting(interaction.guild.id, 'volume', 100);
+    player.setVolume(savedVol);
 
     return interaction.reply({
-      embeds: [embed],
+      embeds: [new EmbedBuilder().setColor('Green').setDescription(`Joined **${interaction.member.voice.channel.name}**. Use /play to add tracks.`)],
+      ephemeral: true,
     });
   },
 };

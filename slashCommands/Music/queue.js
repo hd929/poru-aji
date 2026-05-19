@@ -1,41 +1,100 @@
-const { EmbedBuilder } = require('discord.js');
-const ms = require('ms');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
+function formatDuration(ms) {
+  if (!ms || ms === 0) return 'Live';
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return h > 0
+    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    : `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function buildPage(player, pageNum) {
+  const perPage = 10;
+  const tracks = player.queue;
+  const totalPages = Math.max(1, Math.ceil(tracks.length / perPage));
+  const page = Math.min(Math.max(1, pageNum), totalPages);
+  const start = (page - 1) * perPage;
+  const end = Math.min(start + perPage, tracks.length);
+
+  let description = '';
+
+  if (player.currentTrack) {
+    const cur = player.currentTrack;
+    const req = cur.info.requester ? ` — <@${cur.info.requester.id}>` : '';
+    description += `▶️ **Now Playing:** [${cur.info.title.substring(0, 50)}](${cur.info.uri}) \`${formatDuration(cur.info.length)}\`${req}\n\n`;
+  }
+
+  if (player.radioMode) {
+    description += '📻 **Radio Mode** — AI auto-loads tracks\n\n';
+  } else if (player.autoplay) {
+    description += '🔄 **Autoplay On** — AI continues after queue\n\n';
+  }
+
+  if (tracks.length === 0) {
+    description += 'Queue is empty.';
+  } else {
+    for (let i = start; i < end; i++) {
+      const t = tracks[i];
+      const req = t.info.requester ? ` — <@${t.info.requester.id}>` : '';
+      description += `${i + 1}. [${t.info.title.substring(0, 50)}](${t.info.uri}) \`${formatDuration(t.info.length)}\`${req}\n`;
+    }
+    if (tracks.length > perPage) {
+      description += `\n*Page ${page}/${totalPage} (${tracks.length} tracks)*`;
+    }
+  }
+
+  const totalMs = tracks.reduce((sum, t) => sum + (t.info.length || 0), 0);
+  const footer = `Page ${page}/${totalPages} | ${tracks.length} tracks | ${formatDuration(totalMs)} total`;
+
+  const row = new ActionRowBuilder();
+  if (totalPages > 1) {
+    if (page > 1) row.addComponents(new ButtonBuilder().setCustomId('queue_prev').setLabel('◀️ Prev').setStyle(ButtonStyle.Secondary));
+    row.addComponents(new ButtonBuilder().setCustomId('queue_next').setLabel('Next ▶️').setStyle(ButtonStyle.Secondary).setDisabled(page >= totalPages));
+  }
+
+  const embed = new EmbedBuilder()
+    .setColor('Blue')
+    .setTitle('Queue')
+    .setDescription(description)
+    .setFooter({ text: footer });
+
+  return { embed, components: row.components.length > 0 ? [row] : [] };
+}
 
 module.exports = {
   name: 'queue',
-  description: 'Show the server queue',
+  description: 'View the current queue',
   inVc: true,
-  sameVc: true,
-  run: (client, interaction) => {
+  player: true,
+  run: async (client, interaction) => {
     const player = client.poru.players.get(interaction.guild.id);
+    if (!player?.currentTrack && player.queue.length === 0) {
+      return interaction.reply({ content: 'Queue is empty.', ephemeral: true });
+    }
 
-    const queue =
-      player.queue.length > 9 ? player.queue.slice(0, 9) : player.queue;
+    const { embed, components } = buildPage(player, 1);
+    const msg = await interaction.reply({ embeds: [embed], components, fetchReply: true, ephemeral: true });
 
-    const embed = new EmbedBuilder()
-      .setColor('White')
-      .setTitle('Now Playing')
-      .setThumbnail(player.currentTrack.info.image)
-      .setDescription(
-        `[${player.currentTrack.info.title}](${
-          player.currentTrack.info.uri
-        }) [${ms(player.currentTrack.info.length)}]`,
-      )
-      .setFooter({ text: `Queue length: ${player.queue.length} tracks` });
+    if (components.length === 0) return;
 
-    if (queue.length)
-      embed.addFields([
-        {
-          name: 'Up Next',
-          value: queue
-            .map(
-              (track, index) =>
-                `**${index + 1}.** [${track.info.title}](${track.info.uri})`,
-            )
-            .join('\n'),
-        },
-      ]);
+    const collector = msg.createMessageComponentCollector({ time: 2 * 60 * 1000 });
+    let currentPage = 1;
 
-    interaction.reply({ embeds: [embed] });
+    collector.on('collect', async (i) => {
+      await i.deferUpdate();
+      if (i.customId === 'queue_prev') currentPage = Math.max(1, currentPage - 1);
+      else if (i.customId === 'queue_next') currentPage++;
+
+      const { embed: newEmbed, components: newComponents } = buildPage(player, currentPage);
+      await i.editReply({ embeds: [newEmbed], components: newComponents });
+    });
+
+    collector.on('end', () => {
+      const { embed: finalEmbed } = buildPage(player, currentPage);
+      msg.edit({ embeds: [finalEmbed], components: [] }).catch(() => {});
+    });
   },
 };
