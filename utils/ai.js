@@ -1,8 +1,15 @@
 const OpenAI = require('openai');
 
+const AI_API_KEY = process.env.AI_API_KEY;
+const AI_API_URL = process.env.AI_API_URL || 'https://api.songyang.cyou/v1';
+
+if (!AI_API_KEY) {
+  console.warn('[AI] AI_API_KEY not set. AI features will be disabled.');
+}
+
 const ai = new OpenAI({
-  apiKey: 'sk-5ea19745c9054ff38d7a75fe301997d39eed168cfad07f99',
-  baseURL: 'https://api.songyang.cyou/v1',
+  apiKey: AI_API_KEY || 'dummy-key',
+  baseURL: AI_API_URL,
 });
 
 const MODEL_SMART = 'Qwen3.5-Plus';
