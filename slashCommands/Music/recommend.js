@@ -116,9 +116,13 @@ function getSmartFallback(player, count) {
   }
 
   const genres = ['chill vibes', 'lofi hip hop', 'electronic music', 'indie pop', 'deep house mix', 'ambient music'];
-  const shuffled = genres.sort(() => Math.random() - 0.5);
+  // Fisher-Yates shuffle (unbiased)
+  for (let i = genres.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [genres[i], genres[j]] = [genres[j], genres[i]];
+  }
 
-  for (const genre of shuffled) {
+  for (const genre of genres) {
     if (queries.length >= count) break;
     queries.push({ title: genre, artist: '', reason: `Similar vibe: ${genre}` });
   }

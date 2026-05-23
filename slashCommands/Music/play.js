@@ -1,33 +1,10 @@
 const { ApplicationCommandOptionType, EmbedBuilder, InteractionType } = require('discord.js');
-const { isYoutubeLink, getDirectUrl } = require('../../utils/ytdlp');
-
-function formatDuration(ms) {
-  if (!ms || ms === 0) return 'Live';
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  return h > 0
-    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-    : `${m}:${String(s).padStart(2, '0')}`;
-}
-
-async function loadTrack(node, identifier) {
-  const res = await node.rest.get(`/v4/loadtracks?identifier=${encodeURIComponent(identifier)}`);
-  return res;
-}
-
-async function trySoundCloudFallback(node, query) {
-  const response = await loadTrack(node, `scsearch:${query}`);
-  if (response?.loadType === 'search' && response.data?.length > 0) {
-    return { source: 'soundcloud', response, query };
-  }
-  return null;
-}
+const { formatDuration } = require('../../utils/musicUtils');
+const { loadTrack, searchWithFallback, DEFAULT_SEARCH_SOURCES } = require('../../utils/loadTrack');
 
 module.exports = {
   name: 'play',
-  description: 'Play a track from YouTube or SoundCloud',
+  description: 'Play a track (auto fallback: SoundCloud → Bandcamp → YouTube)',
   inVc: true,
   sameVc: true,
   options: [
@@ -42,7 +19,23 @@ module.exports = {
   run: async (client, interaction) => {
     if (interaction.type === InteractionType.ApplicationCommandAutocomplete) {
       const focused = interaction.options.getFocused();
-      if (!focused || focused.length < 2) return interaction.respond([]);
+      if (!focused || focused.length < 2) {
+        try {
+          const { getTopTracksForGuild } = require('../../utils/db');
+          const topTracks = await getTopTracksForGuild(interaction.guildId, 10);
+          if (topTracks.length > 0) {
+            const choices = topTracks.map(t => {
+              const [title, uri] = t.key.split('|||');
+              return {
+                name: `🔥 ${title.substring(0, 80)}`,
+                value: uri,
+              };
+            });
+            return interaction.respond(choices);
+          }
+        } catch {}
+        return interaction.respond([]);
+      }
 
       const node = client.poru.leastUsedNodes[0];
       if (!node) return interaction.respond([]);
@@ -56,9 +49,7 @@ module.exports = {
           }));
           return interaction.respond(results);
         }
-      } catch {
-        // ignore autocomplete errors
-      }
+      } catch {}
       return interaction.respond([]);
     }
 
@@ -84,35 +75,27 @@ module.exports = {
     try {
       const isUrl = query.startsWith('http://') || query.startsWith('https://');
 
-      if (isUrl && isYoutubeLink(query)) {
-        console.log('[Play] YouTube link, trying Lavalink first...');
+      if (isUrl) {
+        console.log('[Play] Loading URL directly...');
         response = await loadTrack(node, query);
 
-        if (response?.loadType === 'empty' || response?.loadType === 'error') {
-          console.log('[Play] Lavalink failed, trying yt-dlp fallback...');
-          const directUrl = getDirectUrl(query);
-          if (directUrl) {
-            response = await loadTrack(node, directUrl);
-            sourceName = 'youtube (yt-dlp)';
+        if (!response || response.loadType === 'empty' || response.loadType === 'error') {
+          console.log('[Play] Direct URL failed, searching...');
+          const searchResult = await searchWithFallback(node, query, DEFAULT_SEARCH_SOURCES);
+          if (searchResult) {
+            response = searchResult.response;
+            sourceName = searchResult.source;
           }
+        } else {
+          const info = response.data?.info || {};
+          sourceName = info.sourceName || 'direct';
         }
-
-        if (response?.loadType === 'empty' || response?.loadType === 'error') {
-          console.log('[Play] All YouTube methods failed, falling back to SoundCloud...');
-          const scResult = await trySoundCloudFallback(node, query.split('v=')[1] || query);
-          if (scResult) {
-            response = scResult.response;
-            sourceName = 'soundcloud (fallback)';
-          }
-        }
-
-        if (!sourceName) sourceName = 'youtube';
-      } else if (isUrl) {
-        response = await loadTrack(node, query);
-        sourceName = 'direct';
       } else {
-        response = await loadTrack(node, `scsearch:${query}`);
-        sourceName = 'soundcloud';
+        const searchResult = await searchWithFallback(node, query, DEFAULT_SEARCH_SOURCES);
+        if (searchResult) {
+          response = searchResult.response;
+          sourceName = searchResult.source;
+        }
       }
     } catch (err) {
       console.error('[Play] Error:', err);
@@ -120,7 +103,7 @@ module.exports = {
     }
 
     if (!response || response.loadType === 'empty') {
-      return interaction.editReply({ content: 'No results found. Try a different query.', ephemeral: true });
+      return interaction.editReply({ content: 'No results found on any source.', ephemeral: true });
     }
 
     const tracks = [];

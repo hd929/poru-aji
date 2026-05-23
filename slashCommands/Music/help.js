@@ -10,7 +10,7 @@ module.exports = {
       .setDescription(
         `**🎵 Music**\n` +
         `\`/play <query/link>\` - Play a track (SoundCloud primary)\n` +
-        `\`/skip\` - Skip current track\n` +
+        `\`/next\` - Skip current track\n` +
         `\`/pause\` - Pause playback\n` +
         `\`/resume\` - Resume playback\n` +
         `\`/stop\` - Stop and clear queue\n` +

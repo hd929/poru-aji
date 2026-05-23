@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const { getServerSetting } = require('../../utils/settings');
+const { getServerSetting } = require('../../utils/db');
 
 module.exports = {
   name: 'join',

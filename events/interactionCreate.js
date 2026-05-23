@@ -1,5 +1,7 @@
-const { InteractionType, EmbedBuilder } = require('discord.js');
-const { createNowPlayingEmbed, createMusicButtons, createDisabledButtons, isOnCooldown } = require('../utils/musicUtils');
+const { InteractionType } = require('discord.js');
+const { createNowPlayingEmbed, createMusicButtons, createQueueEmbed, createQueueButtons, isOnCooldown } = require('../utils/musicUtils');
+const { loadAutoplayTrack } = require('../utils/autoplay');
+const { RADIO_GENRES, searchRadioTrack, loadRadioTracks } = require('../utils/radio');
 
 module.exports.run = async (client, interaction) => {
   if (interaction.type === InteractionType.ApplicationCommandAutocomplete) {
@@ -20,7 +22,6 @@ module.exports.run = async (client, interaction) => {
 
     if (interaction.customId.startsWith('queue_')) {
       if (!player) return interaction.reply({ content: 'No player found.', ephemeral: true });
-      const { createQueueEmbed, createQueueButtons } = require('../utils/musicUtils');
       let page = parseInt(interaction.message.embeds[0]?.footer?.text?.match(/Page (\d+)/)?.[1] || '1') - 1;
 
       switch (interaction.customId) {
@@ -60,7 +61,7 @@ module.exports.run = async (client, interaction) => {
           if (player.previousTracks && player.previousTracks.length > 0) {
             const prev = player.previousTracks.pop();
             player.queue.unshift(prev);
-            player.stop();
+            await player.skip();
             interaction.reply({ content: '⏮️ Playing previous track.', ephemeral: true });
           } else {
             interaction.reply({ content: 'No previous track available.', ephemeral: true });
@@ -78,18 +79,29 @@ module.exports.run = async (client, interaction) => {
           break;
 
         case 'music_skip':
-          if (player.queue.length > 0) {
-            player.stop();
-            interaction.reply({ content: '⏭️ Skipped.', ephemeral: true });
-          } else {
-            interaction.reply({ content: 'No tracks in queue to skip to.', ephemeral: true });
+          await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
+          if (player.radioMode && player.queue.length < 3 && !player._radioLoading) {
+            await loadRadioTracks(client, player, 2);
+          } else if (player.autoplay && player.queue.length === 0) {
+            const trackData = await loadAutoplayTrack(client, player);
+            if (trackData) {
+              player.queue.add({ track: trackData.encoded, info: trackData.info, requester: client.user });
+            } else {
+              return interaction.editReply({ content: 'Could not load autoplay track.' });
+            }
+          } else if (player.queue.length === 0) {
+            return interaction.editReply({ content: 'No tracks in queue to skip to.' });
           }
+
+          await player.skip();
+          interaction.editReply({ content: '⏭️ Skipped.' });
           break;
 
         case 'music_stop':
           player.autoplay = false;
           player.radioMode = false;
-          player.destroy();
+          await player.destroy();
           interaction.reply({ content: '⏹️ Stopped and disconnected.', ephemeral: true });
           break;
 
@@ -135,9 +147,8 @@ module.exports.run = async (client, interaction) => {
           break;
 
         case 'music_queue':
-          const { createQueueEmbed: createQEmbed, createQueueButtons: createQButtons } = require('../utils/musicUtils');
-          const qEmbed = createQEmbed(player, 0);
-          const qButtons = createQButtons(0, Math.ceil(player.queue.length / 10));
+          const qEmbed = createQueueEmbed(player, 0);
+          const qButtons = createQueueButtons(0, Math.ceil(player.queue.length / 10));
           interaction.reply({ embeds: [qEmbed], components: [qButtons], ephemeral: true });
           break;
       }

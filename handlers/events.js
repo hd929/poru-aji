@@ -9,13 +9,14 @@ module.exports = (client) => {
   );
 
   for (const file of files) {
+    let eventName = file.replace('.js', '');
     try {
       const event = require(`${__dirname.replace(
         'handlers',
         'events',
       )}/${file}`);
 
-      const eventName = event.event || file.replace('.js', '');
+      eventName = event.event || eventName;
       client.on(eventName, event.run.bind(null, client));
       table.addRow(eventName, '✅');
     } catch (err) {

@@ -2,6 +2,17 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('
 
 const buttonCooldowns = new Map();
 const COOLDOWN_MS = 3000;
+const COOLDOWN_CLEANUP_INTERVAL = 60_000; // Clean stale entries every 60s
+
+// Prevent memory leak: periodically purge expired cooldown entries
+setInterval(() => {
+  const now = Date.now();
+  for (const [userId, timestamp] of buttonCooldowns) {
+    if (now - timestamp > COOLDOWN_MS) {
+      buttonCooldowns.delete(userId);
+    }
+  }
+}, COOLDOWN_CLEANUP_INTERVAL).unref();
 
 function isOnCooldown(userId) {
   const now = Date.now();

@@ -1,15 +1,5 @@
 const { ApplicationCommandOptionType, EmbedBuilder } = require('discord.js');
-
-function formatDuration(ms) {
-  if (!ms || ms === 0) return 'Live';
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  return h > 0
-    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-    : `${m}:${String(s).padStart(2, '0')}`;
-}
+const { formatDuration } = require('../../utils/musicUtils');
 
 module.exports = {
   name: 'artist',
@@ -42,11 +32,22 @@ module.exports = {
       if (!node) return interaction.respond([]);
 
       try {
-        const res = await node.rest.get(`/v4/loadtracks?identifier=${encodeURIComponent(`scsearch:${focused} artist`)}`);
+        const res = await node.rest.get(`/v4/loadtracks?identifier=${encodeURIComponent(`scsearch:${focused}`)}`);
         if (res?.loadType === 'search' && res.data?.length > 0) {
-          const results = res.data.slice(0, 5).map(t => ({
-            name: `${t.info.title.substring(0, 80)} [${formatDuration(t.info.length)}]`,
-            value: t.info.author,
+          const uniqueAuthors = [];
+          const seen = new Set();
+          for (const t of res.data) {
+            const author = t.info.author?.trim();
+            if (!author) continue;
+            const lower = author.toLowerCase();
+            if (!seen.has(lower)) {
+              seen.add(lower);
+              uniqueAuthors.push(author);
+            }
+          }
+          const results = uniqueAuthors.slice(0, 10).map(author => ({
+            name: `🎤 ${author}`,
+            value: author,
           }));
           return interaction.respond(results);
         }

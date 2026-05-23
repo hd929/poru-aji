@@ -1,19 +1,5 @@
 const { incrementTrack } = require('../utils/db');
-
-const RADIO_GENRES = [
-  'scsearch:chill beats instrumental',
-  'scsearch:lofi hip hop mix',
-  'scsearch:ambient electronic',
-  'scsearch:deep house chill',
-  'scsearch:indie acoustic cover',
-  'scsearch:jazz cafe background',
-  'scsearch:synthwave retro',
-  'scsearch:study music focus',
-  'scsearch:relaxing piano music',
-  'scsearch:night drive music',
-  'scsearch:tropical house mix',
-  'scsearch:future bass chill',
-];
+const { loadRadioTracks } = require('../utils/radio');
 
 module.exports.event = 'trackStart';
 module.exports.run = async (client, player, track) => {
@@ -25,45 +11,13 @@ module.exports.run = async (client, player, track) => {
     console.error('[TopTracks] Failed:', err.message);
   }
 
-  if (player._firstTrack || (!player.radioMode && player.queue.length === 0)) {
-    player._firstTrack = false;
-    return;
-  }
-
   if (player.radioMode) {
-    if (player.queue.length < 2) {
-      preloadRadioTrack(client, player);
+    player._radioErrors = 0;
+    if (player.queue.length === 0 && !player._radioLoading) {
+      const loaded = await loadRadioTracks(client, player, 2);
+      if (loaded > 0 && !player.isPlaying) {
+        await player.play();
+      }
     }
-    return;
   }
 };
-
-async function preloadRadioTrack(client, player) {
-  if (player._radioLoading) return;
-  if (!player.radioMode) return;
-  player._radioLoading = true;
-
-  const node = player.node;
-  let loaded = 0;
-
-  for (let i = 0; i < 2; i++) {
-    if (!player.radioMode) break;
-    const genre = RADIO_GENRES[player._radioGenreIndex % RADIO_GENRES.length];
-    player._radioGenreIndex++;
-
-    try {
-      const res = await node.rest.get(`/v4/loadtracks?identifier=${encodeURIComponent(genre)}`);
-      if (res?.loadType === 'search' && res.data?.length > 0 && player.radioMode) {
-        const randomIdx = Math.floor(Math.random() * Math.min(res.data.length, 5));
-        const t = res.data[randomIdx];
-        player.queue.add({ track: t.encoded, info: t.info, requester: client.user });
-        loaded++;
-      }
-    } catch (err) {
-      console.error('[Radio preload] Error:', err.message);
-    }
-  }
-
-  console.log(`[Radio] Preloaded ${loaded} tracks. Queue now: ${player.queue.length}`);
-  player._radioLoading = false;
-}

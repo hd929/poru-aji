@@ -12,8 +12,14 @@ const ai = new OpenAI({
   baseURL: AI_API_URL,
 });
 
-const MODEL_SMART = 'Qwen3.5-Plus';
-const MODEL_FAST = 'alibaba/qwen3.5-flash';
+const MODEL_SMART = 'deepseek-v4-flash';
+const MODEL_FAST = 'deepseek-v4-flash';
+
+/** Strip markdown code fences from AI responses and parse JSON */
+function parseAIJson(raw) {
+  const cleaned = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  return JSON.parse(cleaned);
+}
 
 async function askAI(messages, model = MODEL_SMART, temperature = 0.9, retries = 2) {
   let lastError;
@@ -49,8 +55,7 @@ Avoid duplicates. Return JSON only:
   ], MODEL_FAST);
 
   try {
-    const json = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-    return JSON.parse(json);
+    return parseAIJson(raw);
   } catch {
     console.error('[AI] Failed to parse recommendation:', raw);
     return [];
@@ -67,8 +72,7 @@ async function moodPlaylist(mood, count = 5) {
   ], MODEL_SMART);
 
   try {
-    const json = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-    return JSON.parse(json);
+    return parseAIJson(raw);
   } catch {
     console.error('[AI] Failed to parse mood playlist:', raw);
     return [];

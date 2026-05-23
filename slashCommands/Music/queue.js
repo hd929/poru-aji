@@ -1,15 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-
-function formatDuration(ms) {
-  if (!ms || ms === 0) return 'Live';
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  return h > 0
-    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-    : `${m}:${String(s).padStart(2, '0')}`;
-}
+const { formatDuration } = require('../../utils/musicUtils');
 
 function buildPage(player, pageNum) {
   const perPage = 10;
@@ -42,7 +32,7 @@ function buildPage(player, pageNum) {
       description += `${i + 1}. [${t.info.title.substring(0, 50)}](${t.info.uri}) \`${formatDuration(t.info.length)}\`${req}\n`;
     }
     if (tracks.length > perPage) {
-      description += `\n*Page ${page}/${totalPage} (${tracks.length} tracks)*`;
+      description += `\n*Page ${page}/${totalPages} (${tracks.length} tracks)*`;
     }
   }
 

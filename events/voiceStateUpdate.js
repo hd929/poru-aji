@@ -1,5 +1,8 @@
 module.exports.run = (client, oldVoice, newVoice) => {
-  const player = client.poru.players.get(oldVoice.guild.id);
+  const guildId = oldVoice?.guildId || newVoice?.guildId;
+  if (!guildId) return;
+
+  const player = client.poru.players.get(guildId);
   if (!player) return;
 
   const botChannel = newVoice.guild.members.me?.voice?.channelId;
@@ -15,6 +18,7 @@ module.exports.run = (client, oldVoice, newVoice) => {
     player._emptyTimeout = setTimeout(() => {
       player._emptyTimeout = null;
       player.autoplay = false;
+      player.radioMode = false;
       player.destroy();
     }, 5 * 60 * 1000);
   } else {

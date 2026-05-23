@@ -2,7 +2,7 @@ const { Client, Collection, GatewayIntentBits, REST, Routes } = require('discord
 require("dotenv").config();
 const { Poru } = require('poru');
 const db = require('./utils/db');
-const { getServerSetting } = require('./utils/settings');
+const { getServerSetting } = require('./utils/db');
 const path = require('path');
 const fs = require('fs');
 
@@ -27,8 +27,6 @@ client.poru = new Poru(client, client.config.nodes, {
   defaultPlatform: "scsearch",
 });
 
-client.commands = new Collection();
-client.aliases = new Collection();
 client.slashCommands = new Collection();
 
 ['events', 'slash', 'poruEvent'].forEach((handler) => {
@@ -41,30 +39,7 @@ client.poru.on('playerCreate', async (player) => {
   console.log(`[Player] Created for guild ${player.guildId}, volume: ${savedVol}%`);
 });
 
-client.poru.on('nodeConnect', (node) => {
-  console.log(`[Lavalink] Node ${node.name} connected`);
-});
-
-client.poru.on('nodeError', (node, error) => {
-  console.error(`[Lavalink] Node ${node.name} error:`, error.message);
-});
-
-client.poru.on('nodeDisconnect', (node, code, reason) => {
-  console.log(`[Lavalink] Node ${node.name} disconnected: ${code} - ${reason || 'No reason'}`);
-  if (code === 1006) {
-    console.log('[Lavalink] Connection lost. Check if Lavalink server is running.');
-  }
-});
-
-client.poru.on('nodeReconnecting', (node, reconnectsLeft) => {
-  console.log(`[Lavalink] Node ${node.name} reconnecting. ${reconnectsLeft} attempts left.`);
-});
-
-client.poru.on('nodeDestroy', (node) => {
-  console.log(`[Lavalink] Node ${node.name} destroyed.`);
-});
-
-client.on('clientReady', async () => {
+client.on('ready', async () => {
   await db.connect();
 
   for (const shard of client.ws.shards.values()) {
@@ -85,23 +60,17 @@ client.on('clientReady', async () => {
   console.log(`[Bot] Ready in ${client.guilds.cache.size} server(s)`);
 });
 
-process.on('SIGINT', async () => {
+async function gracefulShutdown() {
   console.log('[Bot] Shutting down gracefully...');
   for (const player of client.poru.players.values()) {
     player.destroy();
   }
   await client.destroy();
   process.exit(0);
-});
+}
 
-process.on('SIGTERM', async () => {
-  console.log('[Bot] Shutting down gracefully...');
-  for (const player of client.poru.players.values()) {
-    player.destroy();
-  }
-  await client.destroy();
-  process.exit(0);
-});
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', gracefulShutdown);
 
 async function deployCommands() {
   const config = require('./config.json');
@@ -134,7 +103,7 @@ async function deployCommands() {
     process.exit(1);
   }
 
-  const rest = new REST({ version: '11' }).setToken(process.env.TOKEN);
+  const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
   try {
     console.log(`[Deploy] Registering ${commands.length} commands globally...`);
