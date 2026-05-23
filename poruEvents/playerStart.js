@@ -13,6 +13,10 @@ module.exports.run = async (client, player, track) => {
 
   if (player.radioMode) {
     player._radioErrors = 0;
+    if (!player._radioHistory) player._radioHistory = [];
+    player._radioHistory.push(track.info.title);
+    if (player._radioHistory.length > 50) player._radioHistory.shift(); // Keep last 50 tracks
+
     if (player.queue.length === 0 && !player._radioLoading) {
       const loaded = await loadRadioTracks(client, player, 2);
       if (loaded > 0 && !player.isPlaying) {

@@ -43,8 +43,8 @@ module.exports = {
       try {
         const response = await loadTrack(node, `scsearch:${focused}`);
         if (response?.loadType === 'search' && response.data?.length > 0) {
-          const results = response.data.slice(0, 5).map(t => ({
-            name: `${t.info.title.substring(0, 80)} [${formatDuration(t.info.length)}]`,
+          const results = response.data.slice(0, 25).map(t => ({
+            name: `🎵 ${t.info.title.substring(0, 75)} [${formatDuration(t.info.length)}]`,
             value: t.info.uri,
           }));
           return interaction.respond(results);

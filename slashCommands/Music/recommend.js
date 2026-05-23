@@ -49,13 +49,13 @@ module.exports = {
       }
     }
 
-    // 2. Fallback to AI if no top tracks
+    // 2. Fallback to Algorithm if no top tracks
     if (recommendations.length === 0) {
       try {
         recommendations = await recommendSongs(player.currentTrack, player.queue, count);
-        source = 'AI Recommendations';
+        source = 'Algorithm Recommendations';
       } catch (err) {
-        console.error('[AI] Connection error, using smart fallback:', err.message);
+        console.error('[Algorithm] Logic error, using smart fallback:', err.message);
       }
     }
 

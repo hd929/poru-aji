@@ -3,7 +3,7 @@ const { explainSong } = require('../../utils/ai');
 
 module.exports = {
   name: 'why',
-  description: 'AI explains why this song fits the vibe',
+  description: 'Algorithm explains why this song fits the vibe',
   inVc: true,
   sameVc: true,
   player: true,
@@ -18,13 +18,13 @@ module.exports = {
     try {
       explanation = await explainSong(player.currentTrack, player.queue);
     } catch (err) {
-      console.error('[AI] Connection error:', err.message);
-      return interaction.editReply({ content: 'AI is currently unavailable.', ephemeral: true });
+      console.error('[Algorithm] Logic error:', err.message);
+      return interaction.editReply({ content: 'Algorithm error.', ephemeral: true });
     }
 
     const embed = new EmbedBuilder()
       .setColor('Purple')
-      .setAuthor({ name: 'AI DJ', iconURL: client.user.displayAvatarURL() })
+      .setAuthor({ name: 'Algorithm DJ', iconURL: client.user.displayAvatarURL() })
       .setTitle(player.currentTrack.info.title.substring(0, 100))
       .setDescription(explanation)
       .setFooter({ text: `by ${player.currentTrack.info.author}` });

@@ -21,12 +21,22 @@ const RADIO_GENRES = [
   'future bass chill',
 ];
 
-async function searchRadioTrack(node, query) {
+async function searchRadioTrack(node, query, history = []) {
   for (const src of RADIO_SOURCES) {
     try {
-      const res = await loadTrack(node, `${src.prefix}${query}`);
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000));
+      const res = await Promise.race([
+        node.rest.get(`/v4/loadtracks?identifier=${encodeURIComponent(`${src.prefix}${query}`)}`),
+        timeout,
+      ]);
       if (res?.loadType === 'search' && res.data?.length > 0) {
-        return res.data[Math.floor(Math.random() * Math.min(res.data.length, 5))];
+        // Filter out tracks already played to avoid repeating songs
+        const filtered = res.data.filter(t => {
+          const title = t.info.title.toLowerCase();
+          return !history.some(h => title.includes(h.toLowerCase()) || h.toLowerCase().includes(title));
+        });
+        const pool = filtered.length > 0 ? filtered : res.data;
+        return pool[Math.floor(Math.random() * Math.min(pool.length, 8))];
       }
     } catch {}
   }
@@ -56,7 +66,7 @@ async function loadRadioTracks(client, player, count = 2) {
     attempts++;
 
     try {
-      const t = await searchRadioTrack(player.node, genre);
+      const t = await searchRadioTrack(player.node, genre, player._radioHistory || []);
       if (t && player.radioMode) {
         player.queue.add({ track: t.encoded, info: t.info, requester: client.user });
         loaded++;

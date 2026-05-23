@@ -31,12 +31,12 @@ module.exports = {
         `**🎤 Artist & Recent**\n` +
         `\`/artist <name> [count]\` - Play tracks by artist\n` +
         `\`/recent\` - Play recently played tracks\n\n` +
-        `**🤖 AI DJ**\n` +
-        `\`/recommend [count]\` - AI recommends similar songs\n` +
-        `\`/mood <vibe>\` - AI creates mood playlist\n` +
-        `\`/why\` - AI explains why this song fits\n` +
-        `\`/summarizequeue\` - AI describes queue vibe\n` +
-        `\`/roasttaste\` - AI roasts your music taste\n\n` +
+        `**⚙️ Smart DJ (Algorithm)**\n` +
+        `\`/recommend [count]\` - Algorithm recommends similar songs\n` +
+        `\`/mood <vibe>\` - Algorithm creates mood playlist\n` +
+        `\`/why\` - Algorithm explains why this song fits\n` +
+        `\`/summarizequeue\` - Algorithm describes queue vibe\n` +
+        `\`/roasttaste\` - Algorithm roasts your music taste\n\n` +
         `**📊 Info**\n` +
         `\`/toptracks\` - Most played tracks in server\n` +
         `\`/ping\` - Bot latency\n` +

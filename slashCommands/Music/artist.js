@@ -34,18 +34,9 @@ module.exports = {
       try {
         const res = await node.rest.get(`/v4/loadtracks?identifier=${encodeURIComponent(`scsearch:${focused}`)}`);
         if (res?.loadType === 'search' && res.data?.length > 0) {
-          const uniqueAuthors = [];
-          const seen = new Set();
-          for (const t of res.data) {
-            const author = t.info.author?.trim();
-            if (!author) continue;
-            const lower = author.toLowerCase();
-            if (!seen.has(lower)) {
-              seen.add(lower);
-              uniqueAuthors.push(author);
-            }
-          }
-          const results = uniqueAuthors.slice(0, 10).map(author => ({
+          const authors = res.data.map(t => t.info.author);
+          const uniqueAuthors = [...new Set(authors)];
+          const results = uniqueAuthors.slice(0, 25).map(author => ({
             name: `🎤 ${author}`,
             value: author,
           }));

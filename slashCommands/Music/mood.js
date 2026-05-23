@@ -36,12 +36,12 @@ module.exports = {
     try {
       songs = await moodPlaylist(vibe, count);
     } catch (err) {
-      console.error('[AI] Connection error:', err.message);
-      return interaction.editReply({ content: 'AI is currently unavailable. Please use `/play` to search manually.', ephemeral: true });
+      console.error('[Algorithm] Logic error:', err.message);
+      return interaction.editReply({ content: 'Algorithm error. Please use `/play` to search manually.', ephemeral: true });
     }
 
     if (songs.length === 0) {
-      return interaction.editReply({ content: 'AI could not generate a playlist. Try again later.', ephemeral: true });
+      return interaction.editReply({ content: 'Algorithm could not generate a playlist.', ephemeral: true });
     }
 
     const node = client.poru.leastUsedNodes[0];

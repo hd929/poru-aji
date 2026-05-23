@@ -3,7 +3,7 @@ const { summarizeQueue } = require('../../utils/ai');
 
 module.exports = {
   name: 'summarizequeue',
-  description: 'AI describes the vibe of the current queue',
+  description: 'Algorithm describes the vibe of the current queue',
   inVc: true,
   player: true,
   run: async (client, interaction) => {
@@ -18,8 +18,8 @@ module.exports = {
     try {
       summary = await summarizeQueue(player.queue);
     } catch (err) {
-      console.error('[AI] Connection error:', err.message);
-      return interaction.editReply({ content: 'AI is currently unavailable.', ephemeral: true });
+      console.error('[Algorithm] Logic error:', err.message);
+      return interaction.editReply({ content: 'Algorithm error.', ephemeral: true });
     }
 
     const embed = new EmbedBuilder()

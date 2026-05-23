@@ -12,7 +12,7 @@ async function loadAutoplayTrack(client, player) {
   const topTracks = await getTopTracksForGuild(player.guildId, 20);
   let recommendations = [];
 
-  // 1. Try AI recommendations if enough history exists
+  // 1. Try local algorithm recommendations if enough history exists
   if (topTracks.length >= 3) {
     try {
       recommendations = await recommendSongs(
@@ -26,7 +26,7 @@ async function loadAutoplayTrack(client, player) {
         5
       );
     } catch (err) {
-      console.error('[Autoplay] AI recommendation error:', err.message);
+      console.error('[Autoplay] Local recommendation error:', err.message);
     }
   }
 

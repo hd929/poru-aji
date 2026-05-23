@@ -45,6 +45,19 @@ async function loadTrack(node, identifier, timeoutMs = LOAD_TIMEOUT_MS) {
 }
 
 /**
+ * Clean up query by removing common fluff like [Official Video], (Lyrics), etc.
+ * to improve search success rates on SoundCloud and Bandcamp.
+ */
+function cleanQuery(query) {
+  if (!query || query.startsWith('http://') || query.startsWith('https://')) return query;
+  return query
+    .replace(/\s*[\[\(](?:official\s+video|official\s+audio|lyrics|lyric\s+video|official|hd|mv|audio|video|clip\s+officiel|4k|1080p)[\]\)]/gi, '')
+    .replace(/\s*\|\s*.*$/gi, '') // Strip everything after pipe
+    .replace(/\s*-\s*(?:lyrics|lyric|video|audio|official)$/gi, '')
+    .trim();
+}
+
+/**
  * Search across multiple sources with automatic fallback.
  * Sources tried in order: SoundCloud -> Bandcamp -> YouTube.
  */
@@ -52,10 +65,11 @@ async function searchWithFallback(node, query, sources, attempt = 0) {
   if (attempt >= sources.length) return null;
 
   const source = sources[attempt];
-  console.log(`[Search] Trying ${source.name}...`);
+  const cleaned = cleanQuery(query);
+  console.log(`[Search] Trying ${source.name} with query: "${cleaned}"...`);
 
   try {
-    const response = await loadTrack(node, `${source.prefix}${query}`);
+    const response = await loadTrack(node, `${source.prefix}${cleaned}`);
     if (response?.loadType === 'search' && response.data?.length > 0) {
       return { source: source.name, response };
     }
