@@ -36,10 +36,13 @@ module.exports = {
         if (res?.loadType === 'search' && res.data?.length > 0) {
           const authors = res.data.map(t => t.info.author);
           const uniqueAuthors = [...new Set(authors)];
-          const results = uniqueAuthors.slice(0, 25).map(author => ({
-            name: `🎤 ${author}`,
-            value: author,
-          }));
+          const results = uniqueAuthors.slice(0, 25).map(author => {
+            const cleanAuthor = author || 'Unknown';
+            return {
+              name: `🎤 ${cleanAuthor.substring(0, 80)}`,
+              value: cleanAuthor.substring(0, 100),
+            };
+          });
           return interaction.respond(results);
         }
       } catch {
@@ -80,7 +83,11 @@ module.exports = {
       if (res.loadType === 'track') {
         tracks = [{ track: res.data.encoded, info: res.data.info, requester: interaction.member }];
       } else if (res.loadType === 'search') {
-        const filtered = res.data.filter(t => t.info.author.toLowerCase().includes(artistName.toLowerCase()));
+        const normalizedArtist = artistName.toLowerCase().trim();
+        const filtered = res.data.filter(t => {
+          const author = (t.info.author || '').toLowerCase().trim();
+          return author === normalizedArtist || author.startsWith(normalizedArtist + ' ') || author.includes(' ' + normalizedArtist + ' ') || author.endsWith(' ' + normalizedArtist);
+        });
         tracks = (filtered.length > 0 ? filtered : res.data).slice(0, count).map(t => ({
           track: t.encoded,
           info: t.info,

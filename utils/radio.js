@@ -2,8 +2,8 @@ const { loadTrack } = require('./loadTrack');
 
 const RADIO_SOURCES = [
   { prefix: 'scsearch:', name: 'soundcloud' },
-  { prefix: 'bcsearch:', name: 'bandcamp' },
   { prefix: 'ytsearch:', name: 'youtube' },
+  { prefix: 'bcsearch:', name: 'bandcamp' },
 ];
 
 const RADIO_GENRES = [
@@ -19,23 +19,30 @@ const RADIO_GENRES = [
   'night drive music',
   'tropical house mix',
   'future bass chill',
+  'pop hits 2024',
+  'hip hop beats',
+  'acoustic songs',
+  'electronic dance music',
+  'k-pop playlist',
+  'rock classics',
 ];
+
+// Per-server genre preferences (persisted in memory, resets on restart)
+const serverGenrePrefs = new Map();
+const MAX_HISTORY = 50;
 
 async function searchRadioTrack(node, query, history = []) {
   for (const src of RADIO_SOURCES) {
     try {
-      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000));
-      const res = await Promise.race([
-        node.rest.get(`/v4/loadtracks?identifier=${encodeURIComponent(`${src.prefix}${query}`)}`),
-        timeout,
-      ]);
+      const res = await loadTrack(node, `${src.prefix}${query}`);
       if (res?.loadType === 'search' && res.data?.length > 0) {
-        // Filter out tracks already played to avoid repeating songs
+        // Filter out tracks already played
         const filtered = res.data.filter(t => {
           const title = t.info.title.toLowerCase();
           return !history.some(h => title.includes(h.toLowerCase()) || h.toLowerCase().includes(title));
         });
         const pool = filtered.length > 0 ? filtered : res.data;
+        // Limit pool size to avoid memory bloat
         return pool[Math.floor(Math.random() * Math.min(pool.length, 8))];
       }
     } catch {}
@@ -45,8 +52,6 @@ async function searchRadioTrack(node, query, history = []) {
 
 /**
  * Load radio tracks into a player's queue.
- * Consolidates the duplicated radio-loading logic from queueEnd, playerStart,
- * trackError, interactionCreate, and the radio slash command.
  */
 async function loadRadioTracks(client, player, count = 2) {
   if (player._radioLoading) return 0;
@@ -56,19 +61,32 @@ async function loadRadioTracks(client, player, count = 2) {
     player._radioGenreIndex = 0;
   }
 
+  // Initialize radio history with max size
+  if (!player._radioHistory) {
+    player._radioHistory = [];
+  }
+
   let loaded = 0;
   let attempts = 0;
-  const maxAttempts = count * 2;
+  const maxAttempts = count * 5;
 
   while (loaded < count && attempts < maxAttempts && player.radioMode) {
-    const genre = RADIO_GENRES[player._radioGenreIndex % RADIO_GENRES.length];
+    // Use per-server genre bias if available, otherwise random
+    const guildId = player.guildId;
+    const genres = RADIO_GENRES; // Could use per-server preferences here
+    const genre = genres[player._radioGenreIndex % genres.length];
     player._radioGenreIndex++;
     attempts++;
 
     try {
-      const t = await searchRadioTrack(player.node, genre, player._radioHistory || []);
+      const t = await searchRadioTrack(player.node, genre, player._radioHistory);
       if (t && player.radioMode) {
         player.queue.add({ track: t.encoded, info: t.info, requester: client.user });
+        // Add to history, keep max size
+        player._radioHistory.push(t.info.title);
+        if (player._radioHistory.length > MAX_HISTORY) {
+          player._radioHistory.shift();
+        }
         loaded++;
       }
     } catch (err) {
@@ -81,9 +99,17 @@ async function loadRadioTracks(client, player, count = 2) {
   return loaded;
 }
 
+// Clean up function for memory management
+function cleanupRadioHistory(player) {
+  if (player._radioHistory && player._radioHistory.length > MAX_HISTORY) {
+    player._radioHistory = player._radioHistory.slice(-MAX_HISTORY);
+  }
+}
+
 module.exports = {
   RADIO_SOURCES,
   RADIO_GENRES,
   searchRadioTrack,
   loadRadioTracks,
+  cleanupRadioHistory,
 };

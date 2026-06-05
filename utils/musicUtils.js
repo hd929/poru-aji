@@ -35,26 +35,42 @@ function formatDuration(duration) {
 
 function createProgressBar(current, total, length = 20) {
   if (!total || total === 0) return '▬'.repeat(length);
-  const progress = Math.round((current / total) * length);
+  const progress = Math.min(Math.round((current / total) * length), length);
   const emptyProgress = length - progress;
-  return '▬'.repeat(progress) + '🔘' + '▬'.repeat(emptyProgress);
+  return '▬'.repeat(Math.max(0, progress)) + '🔘' + '▬'.repeat(Math.max(0, emptyProgress));
+}
+
+function getTimecode(position, duration) {
+  if (!duration || duration === 0) return 'LIVE';
+  const posTime = formatDuration(position);
+  const durationTime = formatDuration(duration);
+  return `${posTime} / ${durationTime}`;
 }
 
 function createNowPlayingEmbed(track, player) {
   const info = track.info || track;
   const requester = track.requester || info.requester;
+  const duration = info.length || 0;
+  const isLive = duration === 0;
+
   const embed = new EmbedBuilder()
-    .setColor(player.isPaused ? 'Orange' : 'Green')
-    .setTitle('🎵 Now Playing')
-    .setDescription(`**[${info.title.substring(0, 100)}](${info.uri || ''})**`)
+    .setColor(player.isPaused ? '#FFA500' : '#00FF00')
+    .setAuthor({
+      name: '🎵 Now Playing',
+      iconURL: 'https://cdn.discordapp.com/attachments/984739502901362708/1105151528659615824/vinyl.png'
+    })
+    .setTitle(info.title.substring(0, 100))
+    .setURL(info.uri || '')
+    .setDescription(info.author || 'Unknown Artist')
     .addFields(
-      { name: '👤 Artist', value: info.author || 'Unknown', inline: true },
-      { name: '⏱️ Duration', value: formatDuration(info.length), inline: true },
+      { name: '⏱ Duration', value: isLive ? '🔴 LIVE' : formatDuration(duration), inline: true },
       { name: '🔊 Volume', value: `${player.volume}%`, inline: true },
-      { name: '🔁 Loop', value: player.loop === 'NONE' ? 'Disabled' : player.loop === 'TRACK' ? 'Track' : 'Queue', inline: true },
+      { name: '🔁 Loop', value: player.loop === 'NONE' ? 'Off' : player.loop === 'TRACK' ? 'Track' : 'Queue', inline: true },
       { name: '📋 Queue', value: `${player.queue.length} song(s)`, inline: true },
-      { name: '⏸️ Status', value: player.isPaused ? 'Paused' : 'Playing', inline: true }
+      { name: '⏸ Status', value: player.isPaused ? 'Paused' : 'Playing', inline: true },
+      { name: '📻 Radio', value: player.radioMode ? 'On' : 'Off', inline: true }
     )
+    .setFooter({ text: 'Use the buttons below to control playback' })
     .setTimestamp();
 
   if (requester?.id) {
@@ -64,11 +80,12 @@ function createNowPlayingEmbed(track, player) {
   const imageUrl = info.artworkUrl || info.thumbnail || null;
   if (imageUrl) embed.setThumbnail(imageUrl);
 
-  if (player.position && info.length) {
-    const progressBar = createProgressBar(player.position, info.length);
+  if (player.position && duration && !isLive) {
+    const progressBar = createProgressBar(player.position, duration);
+    const timecode = getTimecode(player.position, duration);
     embed.addFields({
-      name: '⏯️ Progress',
-      value: `${formatDuration(player.position)} ${progressBar} ${formatDuration(info.length)}`,
+      name: `⏯ Progress ${timecode}`,
+      value: '```' + progressBar + '```',
       inline: false
     });
   }
@@ -169,21 +186,23 @@ function createQueueEmbed(player, page = 0) {
   const tracks = queue.slice(start, end);
 
   const embed = new EmbedBuilder()
-    .setColor('Blue')
+    .setColor('#3498DB')
     .setTitle('📋 Music Queue')
     .setTimestamp();
 
   if (player.currentTrack) {
     const info = player.currentTrack.info || player.currentTrack;
+    const requester = player.currentTrack.requester || info.requester;
+    const requesterText = requester?.id ? ` | <@${requester.id}>` : '';
     embed.addFields({
       name: '▶️ Now Playing',
-      value: `**${(info.title || 'Unknown').substring(0, 80)}** - ${formatDuration(info.length)}`,
+      value: `**${(info.title || 'Unknown').substring(0, 80)}** - ${formatDuration(info.length)}${requesterText}`,
       inline: false
     });
   }
 
   if (queue.length === 0) {
-    embed.setDescription('The queue is empty!');
+    embed.setDescription('The queue is empty! Add some songs with `/play`');
     return embed;
   }
 
@@ -200,8 +219,9 @@ function createQueueEmbed(player, page = 0) {
   embed.setDescription(description);
 
   const totalPages = Math.ceil(queue.length / tracksPerPage);
+  const totalDuration = queue.reduce((sum, t) => sum + (t.info?.length || t.length || 0), 0);
   embed.setFooter({
-    text: `Page ${page + 1} of ${totalPages} • ${queue.length} song(s) in queue`
+    text: `Page ${page + 1}/${totalPages} • ${queue.length} song(s) • ${formatDuration(totalDuration)} total`
   });
 
   return embed;
@@ -248,6 +268,7 @@ module.exports = {
   isOnCooldown,
   formatDuration,
   createProgressBar,
+  getTimecode,
   createNowPlayingEmbed,
   createMusicButtons,
   createDisabledButtons,
