@@ -8,10 +8,8 @@
     "discord.js": "^14.26.4",
     "dotenv": "^16.0.3",
     "mongodb": "^7.2.0",
-    "openai": "^6.38.0",
     "poru": "^5.3.0",
-    "poru-spotify": "github:parasop/poru-spotify",
-    "typescript": "^5.4.5"
+    "poru-spotify": "github:parasop/poru-spotify"
   },
   "scripts": {
     "start": "node .",
