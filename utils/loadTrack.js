@@ -3,6 +3,7 @@ const LOAD_TIMEOUT_MS = 10_000;
 // High-performance track resolution memory cache
 const trackCache = new Map();
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes TTL
+const MAX_CACHE_SIZE = 500; // Max 500 entries to prevent unbounded growth
 
 setInterval(() => {
   const now = Date.now();
@@ -14,9 +15,24 @@ setInterval(() => {
 }, 5 * 60 * 1000).unref();
 
 /**
+ * Clean up oldest entries when cache exceeds max size
+ */
+function pruneCache() {
+  if (trackCache.size <= MAX_CACHE_SIZE) return;
+
+  const entries = Array.from(trackCache.entries());
+  // Sort by timestamp, oldest first
+  entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+
+  // Remove oldest 20%
+  const toRemove = Math.ceil(entries.length * 0.2);
+  for (let i = 0; i < toRemove; i++) {
+    trackCache.delete(entries[i][0]);
+  }
+}
+
+/**
  * Load a track from a Lavalink node with a timeout guard.
- * Centralizes the duplicated Promise.race + timeout pattern used across
- * play.js, radio.js, interactionCreate.js, queueEnd.js, and trackError.js.
  */
 async function loadTrack(node, identifier, timeoutMs = LOAD_TIMEOUT_MS) {
   const cached = trackCache.get(identifier);
@@ -34,12 +50,13 @@ async function loadTrack(node, identifier, timeoutMs = LOAD_TIMEOUT_MS) {
     timeout,
   ]);
 
-  if (data && data.loadType !== 'error' && data.loadType !== 'empty') {
-    trackCache.set(identifier, {
-      data,
-      timestamp: Date.now()
-    });
-  }
+if (data && data.loadType !== 'error' && data.loadType !== 'empty') {
+     pruneCache(); // Ensure we don't exceed max cache size
+     trackCache.set(identifier, {
+       data,
+       timestamp: Date.now()
+     });
+   }
 
   return data;
 }

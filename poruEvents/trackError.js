@@ -58,7 +58,8 @@ module.exports.run = async (client, player, track, error) => {
       const searchQuery = `${title} ${author}`.substring(0, 100);
       const result = await searchRadioTrack(player.node, searchQuery);
       if (result) {
-        console.log(`[trackError] Fallback found on ${result.source || 'soundcloud'}`);
+        const sourceName = result.info.sourceName || 'soundcloud';
+        console.log(`[trackError] Fallback found on ${sourceName}`);
         player.queue.add({ track: result.encoded, info: result.info, requester: track.info.requester || client.user });
         await player.play();
         return;
