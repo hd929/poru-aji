@@ -4,7 +4,7 @@ const { loadTrack, searchWithFallback, DEFAULT_SEARCH_SOURCES } = require('../..
 
 module.exports = {
   name: 'play',
-  description: 'Play a track (auto fallback: SoundCloud → Bandcamp → YouTube)',
+  description: 'Play any track (SoundCloud → Bandcamp → YouTube)',
   inVc: true,
   sameVc: true,
   options: [
@@ -28,7 +28,7 @@ module.exports = {
               const [title, uri] = t.key.split('|||');
               return {
                 name: `🔥 ${title.substring(0, 80)}`,
-                value: uri,
+                value: uri && uri.length > 100 ? title.substring(0, 100) : (uri || 'Unknown'),
               };
             });
             return interaction.respond(choices);
@@ -42,14 +42,24 @@ module.exports = {
 
       try {
         const response = await loadTrack(node, `scsearch:${focused}`);
+        console.log(`[Autocomplete Debug] Query: "${focused}", loadType: "${response?.loadType}", data length: ${response?.data?.length || 0}`);
         if (response?.loadType === 'search' && response.data?.length > 0) {
-          const results = response.data.slice(0, 25).map(t => ({
-            name: `🎵 ${t.info.title.substring(0, 75)} [${formatDuration(t.info.length)}]`,
-            value: t.info.uri,
-          }));
+          const results = response.data.slice(0, 25).map(t => {
+            const title = t.info.title || 'Unknown';
+            const uri = t.info.uri || '';
+            return {
+              name: `🎵 ${title.substring(0, 75)} [${formatDuration(t.info.length)}]`,
+              value: uri.length > 100 ? title.substring(0, 100) : uri,
+            };
+          });
+          console.log(`[Autocomplete Debug] Responding with ${results.length} results.`);
           return interaction.respond(results);
+        } else {
+          console.log(`[Autocomplete Debug] Non-search response or empty data:`, response);
         }
-      } catch {}
+      } catch (err) {
+        console.error(`[Autocomplete Debug] Error:`, err);
+      }
       return interaction.respond([]);
     }
 
@@ -107,15 +117,15 @@ module.exports = {
     }
 
     const tracks = [];
-    if (response.loadType === 'track') {
-      tracks.push({ track: response.data.encoded, info: response.data.info, requester: interaction.member });
-    } else if (response.loadType === 'search') {
+    if (response.loadType === 'track' && response.data?.encoded) {
+      tracks.push({ track: response.data.encoded, info: response.data.info || {}, requester: interaction.member });
+    } else if (response.loadType === 'search' && Array.isArray(response.data)) {
       for (const t of response.data) {
-        tracks.push({ track: t.encoded, info: t.info, requester: interaction.member });
+        if (t?.encoded) tracks.push({ track: t.encoded, info: t.info || {}, requester: interaction.member });
       }
-    } else if (response.loadType === 'playlist') {
+    } else if (response.loadType === 'playlist' && Array.isArray(response.data?.tracks)) {
       for (const t of response.data.tracks) {
-        tracks.push({ track: t.encoded, info: t.info, requester: interaction.member });
+        if (t?.encoded) tracks.push({ track: t.encoded, info: t.info || {}, requester: interaction.member });
       }
     }
 
@@ -156,6 +166,9 @@ module.exports = {
           for (let i = 0; i < 30; i++) {
             await new Promise(r => setTimeout(r, 200));
             if (player.isConnected) break;
+          }
+          if (!player.isConnected) {
+            return interaction.editReply({ content: 'Failed to connect to voice channel.', ephemeral: true });
           }
         }
         await player.play();

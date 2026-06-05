@@ -4,7 +4,7 @@ const { formatDuration } = require('../../utils/musicUtils');
 
 module.exports = {
   name: 'recent',
-  description: 'Play from recently played tracks',
+  description: 'Play one of your recently played tracks',
   inVc: true,
   sameVc: true,
   options: [
@@ -31,8 +31,8 @@ module.exports = {
       }
 
       const choices = results.slice(0, 25).map(r => ({
-        name: `${r.title.substring(0, 80)} (${r.count} plays)`,
-        value: r.uri,
+        name: `${(r.title || 'Unknown').substring(0, 80)} (${r.count} plays)`,
+        value: r.uri && r.uri.length > 100 ? r.title.substring(0, 100) : (r.uri || 'Unknown'),
       }));
 
       return interaction.respond(choices);
@@ -58,15 +58,18 @@ module.exports = {
       if (recent.length === 0) {
         return interaction.editReply({ content: 'No recent tracks found.', ephemeral: true });
       }
-      const [, uri] = recent[0].key.split('|||');
+      const parts = recent[0].key.split('|||');
+      const uri = parts.length > 1 ? parts[1] : parts[0];
       response = await node.rest.get(`/v4/loadtracks?identifier=${encodeURIComponent(uri)}`);
     }
 
-    if (!response || response.loadType === 'empty') {
+    if (!response || response.loadType === 'empty' || response.loadType === 'error') {
       return interaction.editReply({ content: 'Track not found.', ephemeral: true });
     }
 
-    const trackData = response.loadType === 'track' ? response.data : response.data[0];
+    const trackData = response.loadType === 'track' 
+      ? response.data 
+      : (response.data?.[0] || response.data?.tracks?.[0]);
     const track = { track: trackData.encoded, info: trackData.info, requester: interaction.member };
     player.queue.add(track);
 

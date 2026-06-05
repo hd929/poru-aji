@@ -5,8 +5,12 @@ const { RADIO_GENRES, searchRadioTrack, loadRadioTracks } = require('../utils/ra
 
 module.exports.run = async (client, interaction) => {
   if (interaction.type === InteractionType.ApplicationCommandAutocomplete) {
+    console.log(`[Interaction Autocomplete] Command: ${interaction.commandName}, focused value: "${interaction.options.getFocused()}"`);
     const command = client.slashCommands.get(interaction.commandName);
-    if (!command) return;
+    if (!command) {
+      console.log(`[Interaction Autocomplete] Command not found: ${interaction.commandName}`);
+      return;
+    }
     try {
       await command.run(client, interaction);
     } catch (err) {
@@ -81,6 +85,12 @@ module.exports.run = async (client, interaction) => {
         case 'music_skip':
           await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
+          // Track skip history
+          if (player.currentTrack) {
+            const { trackSkip } = require('../slashCommands/Music/undoskip');
+            trackSkip(interaction.guild.id, player.currentTrack);
+          }
+
           if (player.radioMode && player.queue.length < 3 && !player._radioLoading) {
             await loadRadioTracks(client, player, 2);
           } else if (player.autoplay && player.queue.length === 0) {
@@ -152,11 +162,13 @@ module.exports.run = async (client, interaction) => {
           interaction.reply({ embeds: [qEmbed], components: [qButtons], ephemeral: true });
           break;
       }
-    } catch (err) {
-      if (!interaction.replied) {
-        interaction.reply({ content: 'Error: ' + err.message, ephemeral: true });
-      }
-    }
+} catch (err) {
+       if (interaction.deferred || interaction.replied) {
+         interaction.editReply({ content: 'Error: ' + err.message, ephemeral: true }).catch(() => {});
+       } else {
+         interaction.reply({ content: 'Error: ' + err.message, ephemeral: true }).catch(() => {});
+       }
+     }
     return;
   }
 

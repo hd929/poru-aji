@@ -11,7 +11,7 @@ module.exports = {
     const player = client.poru.players.get(interaction.guildId);
     if (!player?.currentTrack) return interaction.reply({ content: 'Nothing to skip.', ephemeral: true });
 
-    const currentTitle = player.currentTrack.info.title.substring(0, 50);
+    const currentTitle = (player.currentTrack.info?.title || 'Unknown').substring(0, 50);
 
     await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
